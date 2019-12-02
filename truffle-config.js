@@ -1,9 +1,9 @@
 module.exports = {
   networks: {
-    development: {
+    ganachecli: {
       host: "127.0.0.1",
-      port: 7545,
-      network_id: "5777"
+      port: 8545,
+      network_id: "*"
     }
   },
   compilers: {

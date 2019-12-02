@@ -5,14 +5,13 @@ import PowerMarket from "./build/contracts/PowerMarket.json";
 dotenv.config();
 
 const app = express();
-const port = process.env.API_PORT || 3000;
+const port = process.env.API_PORT || 7000;
 
-app.get("/abi", (req: Request, res: Response) => {
-  res.json({abi: PowerMarket.abi});
-});
-
-app.get("/address", (req: Request, res: Response) => {
-  res.json({address: process.env.CONTRACT_ADDRESS});
+app.get("/contract", (req: Request, res: Response) => {
+  res.json({
+    abi: PowerMarket.abi,
+    address: process.env.CONTRACT_ADDRESS
+  });
 });
 
 app.listen(port, () => {
