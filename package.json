@@ -1,9 +1,11 @@
 {
-  "name": "smart-contract",
+  "name": "contract_api",
   "version": "1.0.0",
   "description": "",
   "main": "",
   "scripts": {
+    "compile": "truffle compile",
+    "migrate:ganache": "truffle migrate --network ganache",
     "start": "ts-node server.ts",
     "lint": "prettier --write contracts/*.sol"
   },
