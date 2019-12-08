@@ -1,12 +1,12 @@
 pragma solidity 0.5.13;
 
+import "../node_modules/@openzeppelin/contracts/ownership/Ownable.sol";
 import "./JsmnSolLib.sol";
-import "node_modules/@openzeppelin/contracts/ownership/Ownable.sol";
 import "./provableAPI.sol";
-import "./ENGToken.sol";
+// import "./ENGToken.sol";
 import "./StateMachine.sol";
 
-contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
+contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     enum EBidType {Buy, Sell}
 
     struct Bid {
@@ -18,7 +18,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
     }
 
     string constant PROVABLE_API = "";
-    ENGToken private token;
+    // ENGToken private token;
     Bid[] private bids;
     mapping(uint256 => address) private idToBidder;
     mapping(address => Bid) private bidderToBid;
@@ -46,15 +46,14 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
         address[] memory sellers,
         uint256[] memory surplusEnergies,
         uint256[] memory buyersNodeNums,
-        uint256[] memory sellerNodeNums,
-        address ENGTokenAddress
-    ) public {
+        uint256[] memory sellerNodeNums // address ENGTokenAddress
+    ) public payable StateMachine(100) {
         require(
             sellers.length == surplusEnergies.length,
             "Sellers length need to be same to surplusEnergies.length."
         );
 
-        token = ENGToken(ENGTokenAddress);
+        // token = ENGToken(ENGTokenAddress);
 
         for (uint256 i = 0; i < buyers.length; i++) {
             Bid memory bid = Bid(EBidType.Buy, 0, 0, buyersNodeNums[i], false);
@@ -68,7 +67,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
             uint256 id = bids.push(bid) - 1;
             idToBidder[id] = sellers[i];
             bidderToBid[sellers[i]] = bid;
-            token.mint(sellers[i], surplusEnergies[i]);
+            // token.mint(msg.sender, sellers[i], surplusEnergies[i]);
         }
     }
 
@@ -94,7 +93,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
         require(!bidderToBid[msg.sender].didBid, "You already bidded.");
 
         bidderToBid[msg.sender].price = _price;
-        bidderToBid[msg.sender].amount = token.balanceOf(msg.sender);
+        // bidderToBid[msg.sender].amount = token.balanceOf(msg.sender);
         bidderToBid[msg.sender].didBid = true;
     }
 
@@ -116,11 +115,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine, JsmnSolLib {
         }
         _nextStage();
     }
-
-    function __callback(bytes32 myid, string result) {
-        if (msg.sender != provable_cbAddress()) revert();
-
-        parse(result);
-    }
-
+    // function __callback(bytes32 myid, string memory result) public {
+    //     if (msg.sender != provable_cbAddress()) revert();
+    // }
 }

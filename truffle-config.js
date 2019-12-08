@@ -1,6 +1,8 @@
 require("dotenv").config();
 
 module.exports = {
+  contracts_directory: "./contracts",
+  migrations_directory: "./migrations",
   networks: {
     ganache: {
       host:
