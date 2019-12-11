@@ -1,7 +1,13 @@
-pragma solidity 0.5.13;
+pragma solidity ^0.5.0;
 
 contract StateMachine {
-    enum Stages {AcceptingBids, AcceptingAuction, WaitingAuction, Finished}
+    enum Stages {
+        RegisteringBidders,
+        AcceptingBids,
+        AcceptingAuction,
+        WaitingAuction,
+        Finished
+    }
 
     Stages public stage = Stages.AcceptingBids;
 

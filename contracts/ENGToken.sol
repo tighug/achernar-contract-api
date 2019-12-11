@@ -1,19 +1,19 @@
-pragma solidity 0.5.13;
+pragma solidity ^0.5.0;
 
-import "../node_modules/@openzeppelin/contracts/ownership/Ownable.sol";
+import "../node_modules/@openzeppelin/contracts/access/roles/MinterRole.sol";
 import "./CentralizedERC777.sol";
 
-contract ENGToken is CentralizedERC777, Ownable {
+contract ENGToken is CentralizedERC777, MinterRole {
     constructor(address[] memory defaultOperators)
         public
         CentralizedERC777("Energy", "ENG", defaultOperators)
     {}
 
-    function mint(address operator, address account, uint256 amount)
+    function mint(address _operator, address _account, uint256 _amount)
         public
         returns (bool)
     {
-        _mint(operator, account, amount, "", "");
+        _mint(_operator, _account, _amount, "", "");
         return true;
     }
 }

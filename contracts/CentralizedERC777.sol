@@ -1,10 +1,10 @@
-pragma solidity 0.5.13;
+pragma solidity ^0.5.0;
 
+import "./CentralizedIERC777.sol";
+import "./CentralizedIERC20.sol";
 import "../node_modules/@openzeppelin/contracts/GSN/Context.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC777/IERC777.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
 import "../node_modules/@openzeppelin/contracts/introspection/IERC1820Registry.sol";
@@ -16,7 +16,7 @@ import "../node_modules/@openzeppelin/contracts/introspection/IERC1820Registry.s
  * "send, transfer, burn, authorizeOperator, revokeOperator, approve, transferFrom, _approve",
  * from ERC777.
  */
-contract CentralizedERC777 is Context, IERC777, IERC20 {
+contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
     using SafeMath for uint256;
     using Address for address;
 

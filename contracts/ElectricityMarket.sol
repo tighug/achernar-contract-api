@@ -1,74 +1,83 @@
-pragma solidity 0.5.13;
+pragma solidity ^0.5.0;
 
 import "../node_modules/@openzeppelin/contracts/ownership/Ownable.sol";
 import "./JsmnSolLib.sol";
 import "./provableAPI.sol";
-// import "./ENGToken.sol";
+import "./ENGToken.sol";
 import "./StateMachine.sol";
 
 contract ElectricityMarket is Ownable, usingProvable, StateMachine {
-    enum EBidType {Buy, Sell}
+    enum BidTypes {Buy, Sell}
 
     struct Bid {
-        EBidType bidType;
+        BidTypes bidType;
         uint256 price;
         uint256 amount;
-        uint256 nodeNum;
+        uint256 _nodeNum;
         bool didBid;
     }
 
     string constant PROVABLE_API = "";
-    // ENGToken private token;
+    ENGToken private token;
     Bid[] private bids;
-    mapping(uint256 => address) private idToBidder;
     mapping(address => Bid) private bidderToBid;
 
     modifier onlyBuyer(address account) {
         require(
-            bidderToBid[account].bidType == EBidType.Buy,
-            "You doesn't have buyer role."
+            bidderToBid[account].bidType == BidTypes.Buy,
+            "You doesn't have _buyer role."
         );
         _;
     }
 
     modifier onlySeller(address account) {
         require(
-            bidderToBid[account].bidType == EBidType.Sell,
-            "You doesn't have seller role."
+            bidderToBid[account].bidType == BidTypes.Sell,
+            "You doesn't have _seller role."
         );
         _;
     }
 
     event LogInfo(string message);
 
-    constructor(
-        address[] memory buyers,
-        address[] memory sellers,
-        uint256[] memory surplusEnergies,
-        uint256[] memory buyersNodeNums,
-        uint256[] memory sellerNodeNums // address ENGTokenAddress
-    ) public payable StateMachine(100) {
-        require(
-            sellers.length == surplusEnergies.length,
-            "Sellers length need to be same to surplusEnergies.length."
-        );
+    constructor(address _ENGTokenAddress, uint256 biddingTime)
+        public
+        payable
+        StateMachine(biddingTime)
+    {
+        token = ENGToken(_ENGTokenAddress);
+    }
 
-        // token = ENGToken(ENGTokenAddress);
+    function registerBuyer(address _buyer, uint256 _nodeNum)
+        public
+        timedTransitions()
+        atStage(Stages.RegisteringBidders)
+        onlyOwner()
+    {
+        Bid memory bid = Bid(BidTypes.Buy, 0, 0, _nodeNum, false);
+        bids.push(bid);
+        bidderToBid[_buyer] = bid;
+    }
 
-        for (uint256 i = 0; i < buyers.length; i++) {
-            Bid memory bid = Bid(EBidType.Buy, 0, 0, buyersNodeNums[i], false);
-            uint256 id = bids.push(bid) - 1;
-            idToBidder[id] = buyers[i];
-            bidderToBid[buyers[i]] = bid;
-        }
+    function registerSeller(address _seller, uint256 _nodeNum, uint256 _surplus)
+        public
+        timedTransitions()
+        atStage(Stages.RegisteringBidders)
+        onlyOwner()
+    {
+        Bid memory bid = Bid(BidTypes.Sell, 0, 0, _nodeNum, false);
+        bids.push(bid);
+        bidderToBid[_seller] = bid;
+        token.mint(msg.sender, _seller, _surplus);
+    }
 
-        for (uint256 i = 0; i < sellers.length; i++) {
-            Bid memory bid = Bid(EBidType.Sell, 0, 0, sellerNodeNums[i], false);
-            uint256 id = bids.push(bid) - 1;
-            idToBidder[id] = sellers[i];
-            bidderToBid[sellers[i]] = bid;
-            // token.mint(msg.sender, sellers[i], surplusEnergies[i]);
-        }
+    function openMarket()
+        public
+        timedTransitions()
+        atStage(Stages.RegisteringBidders)
+        onlyOwner()
+    {
+        _nextStage();
     }
 
     function bidBuy(uint256 _price, uint256 _amount)
@@ -93,7 +102,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         require(!bidderToBid[msg.sender].didBid, "You already bidded.");
 
         bidderToBid[msg.sender].price = _price;
-        // bidderToBid[msg.sender].amount = token.balanceOf(msg.sender);
+        bidderToBid[msg.sender].amount = token.balanceOf(msg.sender);
         bidderToBid[msg.sender].didBid = true;
     }
 
@@ -101,7 +110,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         public
         timedTransitions()
         atStage(Stages.AcceptingAuction)
-        onlyOwner
+        onlyOwner()
     {
         if (provable_getPrice("URL") > address(this).balance) {
             emit LogInfo(
@@ -115,7 +124,9 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         }
         _nextStage();
     }
+
     // function __callback(bytes32 myid, string memory result) public {
     //     if (msg.sender != provable_cbAddress()) revert();
     // }
+
 }
