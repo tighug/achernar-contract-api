@@ -1,10 +1,11 @@
 pragma solidity ^0.5.0;
 
-import "../node_modules/@openzeppelin/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./JsmnSolLib.sol";
 import "./provableAPI.sol";
 import "./ENGToken.sol";
 import "./StateMachine.sol";
+
 
 contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     enum BidTypes {Buy, Sell}
@@ -17,15 +18,15 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         bool didBid;
     }
 
-    string constant PROVABLE_API = "";
+    string constant PROVABLE_API = "aaa";
     ENGToken private token;
-    Bid[] private bids;
+    Bid[] private _bids;
     mapping(address => Bid) private bidderToBid;
 
     modifier onlyBuyer(address account) {
         require(
             bidderToBid[account].bidType == BidTypes.Buy,
-            "You doesn't have _buyer role."
+            "You doesn't have buyer role."
         );
         _;
     }
@@ -33,46 +34,46 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     modifier onlySeller(address account) {
         require(
             bidderToBid[account].bidType == BidTypes.Sell,
-            "You doesn't have _seller role."
+            "You doesn't have seller role."
         );
         _;
     }
 
     event LogInfo(string message);
 
-    constructor(address _ENGTokenAddress, uint256 biddingTime)
+    constructor(address tokenAddress, uint256 biddingTime)
         public
         payable
         StateMachine(biddingTime)
     {
-        token = ENGToken(_ENGTokenAddress);
+        token = ENGToken(tokenAddress);
     }
 
     function registerBuyer(address _buyer, uint256 _nodeNum)
-        public
+        external
         timedTransitions()
         atStage(Stages.RegisteringBidders)
         onlyOwner()
     {
         Bid memory bid = Bid(BidTypes.Buy, 0, 0, _nodeNum, false);
-        bids.push(bid);
+        _bids.push(bid);
         bidderToBid[_buyer] = bid;
     }
 
     function registerSeller(address _seller, uint256 _nodeNum, uint256 _surplus)
-        public
+        external
         timedTransitions()
         atStage(Stages.RegisteringBidders)
         onlyOwner()
     {
         Bid memory bid = Bid(BidTypes.Sell, 0, 0, _nodeNum, false);
-        bids.push(bid);
+        _bids.push(bid);
         bidderToBid[_seller] = bid;
         token.mint(msg.sender, _seller, _surplus);
     }
 
     function openMarket()
-        public
+        external
         timedTransitions()
         atStage(Stages.RegisteringBidders)
         onlyOwner()
@@ -81,7 +82,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     }
 
     function bidBuy(uint256 _price, uint256 _amount)
-        public
+        external
         timedTransitions()
         atStage(Stages.AcceptingBids)
         onlyBuyer(msg.sender)
@@ -94,7 +95,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     }
 
     function bidSell(uint256 _price)
-        public
+        external
         timedTransitions()
         atStage(Stages.AcceptingBids)
         onlySeller(msg.sender)
@@ -107,7 +108,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     }
 
     function beginAuction()
-        public
+        external
         timedTransitions()
         atStage(Stages.AcceptingAuction)
         onlyOwner()
@@ -129,4 +130,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     //     if (msg.sender != provable_cbAddress()) revert();
     // }
 
+    function provableApi() external pure returns (string memory) {
+        return PROVABLE_API;
+    }
 }

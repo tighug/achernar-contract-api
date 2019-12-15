@@ -1,13 +1,14 @@
 pragma solidity ^0.5.0;
 
-import "./CentralizedIERC777.sol";
-import "./CentralizedIERC20.sol";
-import "../node_modules/@openzeppelin/contracts/GSN/Context.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
-import "../node_modules/@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import "../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
-import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
-import "../node_modules/@openzeppelin/contracts/introspection/IERC1820Registry.sol";
+import "@openzeppelin/contracts/token/ERC777/IERC777.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/GSN/Context.sol";
+import "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
+import "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/introspection/IERC1820Registry.sol";
+
 
 /**
  * @dev Cutomized ERC777 token standard
@@ -16,11 +17,11 @@ import "../node_modules/@openzeppelin/contracts/introspection/IERC1820Registry.s
  * "send, transfer, burn, authorizeOperator, revokeOperator, approve, transferFrom, _approve",
  * from ERC777.
  */
-contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
+contract CentralizedERC777 is Context, IERC777, IERC20 {
     using SafeMath for uint256;
     using Address for address;
 
-    IERC1820Registry private constant _erc1820 = IERC1820Registry(
+    IERC1820Registry private constant ERC1820 = IERC1820Registry(
         0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24
     );
 
@@ -70,16 +71,210 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         }
 
         // register interfaces
-        _erc1820.setInterfaceImplementer(
+        ERC1820.setInterfaceImplementer(
             address(this),
             keccak256("ERC777Token"),
             address(this)
         );
-        _erc1820.setInterfaceImplementer(
+        ERC1820.setInterfaceImplementer(
             address(this),
             keccak256("ERC20Token"),
             address(this)
         );
+    }
+
+    /**
+     * @dev See {IERC777-burn}.
+     *
+     * Also emits a {Transfer} event for ERC20 compatibility.
+     */
+    function burn(uint256 amount, bytes calldata data) external {
+        _burn(_msgSender(), _msgSender(), amount, data, "");
+    }
+
+    /**
+     * @dev See {IERC777-authorizeOperator}.
+     */
+    function authorizeOperator(address operator) external {
+        require(
+            _msgSender() != operator,
+            "ERC777: authorizing self as operator"
+        );
+
+        if (_defaultOperators[operator]) {
+            delete _revokedDefaultOperators[_msgSender()][operator];
+        } else {
+            _operators[_msgSender()][operator] = true;
+        }
+
+        emit AuthorizedOperator(operator, _msgSender());
+    }
+
+    /**
+     * @dev See {IERC777-revokeOperator}.
+     */
+    function revokeOperator(address operator) external {
+        require(operator != _msgSender(), "ERC777: revoking self as operator");
+
+        if (_defaultOperators[operator]) {
+            _revokedDefaultOperators[_msgSender()][operator] = true;
+        } else {
+            delete _operators[_msgSender()][operator];
+        }
+
+        emit RevokedOperator(operator, _msgSender());
+    }
+
+    /**
+     * @dev See {IERC777-operatorSend}.
+     *
+     * Emits {Sent} and {Transfer} events.
+     */
+    function operatorSend(
+        address sender,
+        address recipient,
+        uint256 amount,
+        bytes calldata data,
+        bytes calldata operatorData
+    )
+        external
+    {
+        require(
+            isOperatorFor(_msgSender(), sender),
+            "ERC777: caller is not an operator for holder"
+        );
+        _send(
+            _msgSender(),
+            sender,
+            recipient,
+            amount,
+            data,
+            operatorData,
+            true
+        );
+    }
+
+    /**
+     * @dev See {IERC777-operatorBurn}.
+     *
+     * Emits {Burned} and {Transfer} events.
+     */
+    function operatorBurn(
+        address account,
+        uint256 amount,
+        bytes calldata data,
+        bytes calldata operatorData
+    )
+        external
+    {
+        require(
+            isOperatorFor(_msgSender(), account),
+            "ERC777: caller is not an operator for holder"
+        );
+        _burn(_msgSender(), account, amount, data, operatorData);
+    }
+
+    /**
+     * @dev See {IERC20-approve}.
+     *
+     * Note that accounts cannot have allowance issued by their operators.
+     */
+    function approve(address spender, uint256 value) external returns (bool) {
+        address holder = _msgSender();
+        _approve(holder, spender, value);
+        return true;
+    }
+
+    /**
+    * @dev See {IERC20-transferFrom}.
+    *
+    * Note that operator and allowance concepts are orthogonal: operators cannot
+    * call `transferFrom` (unless they have allowance), and accounts with
+    * allowance cannot call `operatorSend` (unless they are operators).
+    *
+    * Emits {Sent}, {Transfer} and {Approval} events.
+    */
+    function transferFrom(address holder, address recipient, uint256 amount)
+        external
+        returns (bool)
+    {
+        require(
+            recipient != address(0),
+            "ERC777: transfer to the zero address"
+        );
+        require(holder != address(0), "ERC777: transfer from the zero address");
+
+        address spender = _msgSender();
+
+        _callTokensToSend(spender, holder, recipient, amount, "", "");
+
+        _move(spender, holder, recipient, amount, "", "");
+        _approve(
+            holder,
+            spender,
+            _allowances[holder][spender].sub(
+                amount,
+                "ERC777: transfer amount exceeds allowance"
+            )
+        );
+
+        _callTokensReceived(spender, holder, recipient, amount, "", "", false);
+
+        return true;
+    }
+
+    /**
+     * @dev See {IERC777-send}.
+     *
+     * Also emits a {Transfer} event for ERC20 compatibility.
+     */
+    function send(address recipient, uint256 amount, bytes calldata data)
+        external
+    {
+        _send(_msgSender(), _msgSender(), recipient, amount, data, "", true);
+    }
+
+    /**
+     * @dev See {IERC20-transfer}.
+     *
+     * Unlike `send`, `recipient` is _not_ required to implement the {IERC777Recipient}
+     * interface if it is a contract.
+     *
+     * Also emits a {Sent} event.
+     */
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool)
+    {
+        require(
+            recipient != address(0),
+            "ERC777: transfer to the zero address"
+        );
+
+        address from = _msgSender();
+
+        _callTokensToSend(from, from, recipient, amount, "", "");
+
+        _move(from, from, recipient, amount, "", "");
+
+        _callTokensReceived(from, from, recipient, amount, "", "", false);
+
+        return true;
+    }
+
+    /**
+     * @dev See {IERC777-isOperatorFor}.
+     */
+    function isOperatorFor(address operator, address tokenHolder)
+        public
+        view
+        returns (bool)
+    {
+        return
+            operator == tokenHolder ||
+            (_defaultOperators[operator] &&
+                !_revokedDefaultOperators[tokenHolder][operator]) ||
+            _operators[tokenHolder][operator];
     }
 
     /**
@@ -130,70 +325,10 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
     }
 
     /**
-     * @dev See {IERC777-isOperatorFor}.
-     */
-    function isOperatorFor(address operator, address tokenHolder)
-        public
-        view
-        returns (bool)
-    {
-        return
-            operator == tokenHolder ||
-            (_defaultOperators[operator] &&
-                !_revokedDefaultOperators[tokenHolder][operator]) ||
-            _operators[tokenHolder][operator];
-    }
-
-    /**
      * @dev See {IERC777-defaultOperators}.
      */
     function defaultOperators() public view returns (address[] memory) {
         return _defaultOperatorsArray;
-    }
-
-    /**
-     * @dev See {IERC777-operatorSend}.
-     *
-     * Emits {Sent} and {Transfer} events.
-     */
-    function operatorSend(
-        address sender,
-        address recipient,
-        uint256 amount,
-        bytes calldata data,
-        bytes calldata operatorData
-    ) external {
-        require(
-            isOperatorFor(_msgSender(), sender),
-            "ERC777: caller is not an operator for holder"
-        );
-        _send(
-            _msgSender(),
-            sender,
-            recipient,
-            amount,
-            data,
-            operatorData,
-            true
-        );
-    }
-
-    /**
-     * @dev See {IERC777-operatorBurn}.
-     *
-     * Emits {Burned} and {Transfer} events.
-     */
-    function operatorBurn(
-        address account,
-        uint256 amount,
-        bytes calldata data,
-        bytes calldata operatorData
-    ) external {
-        require(
-            isOperatorFor(_msgSender(), account),
-            "ERC777: caller is not an operator for holder"
-        );
-        _burn(_msgSender(), account, amount, data, operatorData);
     }
 
     /**
@@ -234,7 +369,9 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         uint256 amount,
         bytes memory userData,
         bytes memory operatorData
-    ) internal {
+    )
+        internal
+    {
         require(account != address(0), "ERC777: mint to the zero address");
 
         // Update state variables
@@ -273,7 +410,9 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         bytes memory userData,
         bytes memory operatorData,
         bool requireReceptionAck
-    ) private {
+    )
+        private
+    {
         require(from != address(0), "ERC777: send from the zero address");
         require(to != address(0), "ERC777: send to the zero address");
 
@@ -306,7 +445,9 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         uint256 amount,
         bytes memory data,
         bytes memory operatorData
-    ) private {
+    )
+        private
+    {
         require(from != address(0), "ERC777: burn from the zero address");
 
         _callTokensToSend(
@@ -336,7 +477,9 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         uint256 amount,
         bytes memory userData,
         bytes memory operatorData
-    ) private {
+    )
+        private
+    {
         _balances[from] = _balances[from].sub(
             amount,
             "ERC777: transfer amount exceeds balance"
@@ -345,6 +488,16 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
 
         emit Sent(operator, from, to, amount, userData, operatorData);
         emit Transfer(from, to, amount);
+    }
+
+    function _approve(address holder, address spender, uint256 value) private {
+        // TODO: restore this require statement if this function becomes internal, or is called at a new callsite. It is
+        // currently unnecessary.
+        //require(holder != address(0), "ERC777: approve from the zero address");
+        require(spender != address(0), "ERC777: approve to the zero address");
+
+        _allowances[holder][spender] = value;
+        emit Approval(holder, spender, value);
     }
 
     /**
@@ -363,8 +516,10 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         uint256 amount,
         bytes memory userData,
         bytes memory operatorData
-    ) private {
-        address implementer = _erc1820.getInterfaceImplementer(
+    )
+        private
+    {
+        address implementer = ERC1820.getInterfaceImplementer(
             from,
             TOKENS_SENDER_INTERFACE_HASH
         );
@@ -399,8 +554,10 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         bytes memory userData,
         bytes memory operatorData,
         bool requireReceptionAck
-    ) private {
-        address implementer = _erc1820.getInterfaceImplementer(
+    )
+        private
+    {
+        address implementer = ERC1820.getInterfaceImplementer(
             to,
             TOKENS_RECIPIENT_INTERFACE_HASH
         );
@@ -416,7 +573,7 @@ contract CentralizedERC777 is Context, CentralizedIERC777, CentralizedIERC20 {
         } else if (requireReceptionAck) {
             require(
                 !to.isContract(),
-                "ERC777: token recipient contract has no implementer for ERC777TokensRecipient"
+                "ERC777: token recipient contract has no implementer for Recipient"
             );
         }
     }

@@ -1,7 +1,8 @@
 pragma solidity ^0.5.0;
 
-import "../node_modules/@openzeppelin/contracts/access/roles/MinterRole.sol";
+import "@openzeppelin/contracts/access/roles/MinterRole.sol";
 import "./CentralizedERC777.sol";
+
 
 contract ENGToken is CentralizedERC777, MinterRole {
     constructor(address[] memory defaultOperators)
@@ -11,6 +12,7 @@ contract ENGToken is CentralizedERC777, MinterRole {
 
     function mint(address _operator, address _account, uint256 _amount)
         public
+        onlyMinter
         returns (bool)
     {
         _mint(_operator, _account, _amount, "", "");

@@ -21,6 +21,7 @@ SOFTWARE.
 
 pragma solidity ^0.5.0;
 
+
 library JsmnSolLib {
     enum JsmnType {UNDEFINED, OBJECT, ARRAY, STRING, PRIMITIVE}
 
@@ -97,7 +98,7 @@ library JsmnSolLib {
             bytes1 c = s[parser.pos];
 
             // Quote -> end of string
-            if (c == '"') {
+            if (c == "\"") {
                 (success, token) = allocateToken(parser, tokens);
                 if (!success) {
                     parser.pos = start;
@@ -111,7 +112,7 @@ library JsmnSolLib {
                 // handle escaped characters: skip over it
                 parser.pos++;
                 if (
-                    s[parser.pos] == '"' ||
+                    s[parser.pos] == "\"" ||
                     s[parser.pos] == "/" ||
                     s[parser.pos] == "\\" ||
                     s[parser.pos] == "f" ||
@@ -254,7 +255,7 @@ library JsmnSolLib {
             }
 
             // 0x42
-            if (c == '"') {
+            if (c == "\"") {
                 r = parseString(parser, tokens, s);
 
                 if (r != RETURN_SUCCESS) {
