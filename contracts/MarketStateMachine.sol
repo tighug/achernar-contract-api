@@ -3,11 +3,11 @@ pragma solidity ^0.5.0;
 
 contract StateMachine {
     enum Stages {
-        RegisteringBidders,
-        AcceptingBids,
-        AcceptingAuction,
-        WaitingAuction,
-        Finished
+        RegisteringBidders, // 0
+        AcceptingBids,      // 1
+        AcceptingAuction,   // 2
+        WaitingAuction,     // 3
+        Finished            // 4
     }
 
     uint256 private _creationTime = now;
@@ -25,7 +25,7 @@ contract StateMachine {
         _;
     }
 
-    constructor(uint256 bidPeriod) public {
+    constructor(uint256 bidPeriod) internal {
         _bidPeriod = bidPeriod;
     }
 
