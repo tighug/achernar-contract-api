@@ -1,10 +1,9 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
-import "./JsmnSolLib.sol";
 import "./provableAPI.sol";
-import "./ENGToken.sol";
-import "./StateMachine.sol";
+import "./ELEC.sol";
+import "./MarketStateMachine.sol";
 
 
 contract ElectricityMarket is Ownable, usingProvable, StateMachine {
@@ -14,14 +13,16 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         BidTypes bidType;
         uint256 price;
         uint256 amount;
-        uint256 _nodeNum;
+        uint256 nodeNum;
         bool didBid;
     }
 
-    string constant PROVABLE_API = "aaa";
-    ENGToken private token;
-    Bid[] private _bids;
     mapping(address => Bid) private bidderToBid;
+
+    string constant PROVABLE_API = "aaa";
+    string private _name;
+    ELEC private _token;
+    Bid[] private _bids;
 
     modifier onlyBuyer(address account) {
         require(
@@ -41,51 +42,50 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
 
     event LogInfo(string message);
 
-    constructor(address tokenAddress, uint256 biddingTime)
+    constructor(string memory name, uint bidPeriod)
         public
         payable
-        StateMachine(biddingTime)
+        StateMachine(bidPeriod)
     {
-        token = ENGToken(tokenAddress);
+        _token = new ELEC(name);
+        _name = name;
     }
 
-    function registerBuyer(address _buyer, uint256 _nodeNum)
+    function registerBuyer(address buyer, uint256 nodeNum)
         external
-        timedTransitions()
+        onlyOwner
         atStage(Stages.RegisteringBidders)
-        onlyOwner()
     {
-        Bid memory bid = Bid(BidTypes.Buy, 0, 0, _nodeNum, false);
+        Bid memory bid = Bid(BidTypes.Buy, 0, 0, nodeNum, false);
         _bids.push(bid);
-        bidderToBid[_buyer] = bid;
+        bidderToBid[buyer] = bid;
     }
 
-    function registerSeller(address _seller, uint256 _nodeNum, uint256 _surplus)
+    function registerSeller(address seller, uint256 nodeNum, uint256 surplus)
         external
-        timedTransitions()
+        onlyOwner
         atStage(Stages.RegisteringBidders)
-        onlyOwner()
     {
-        Bid memory bid = Bid(BidTypes.Sell, 0, 0, _nodeNum, false);
+        Bid memory bid = Bid(BidTypes.Sell, 0, 0, nodeNum, false);
         _bids.push(bid);
-        bidderToBid[_seller] = bid;
-        token.mint(msg.sender, _seller, _surplus);
+        bidderToBid[seller] = bid;
+        _token.mint(seller, surplus);
     }
 
     function openMarket()
         external
+        onlyOwner
         timedTransitions()
         atStage(Stages.RegisteringBidders)
-        onlyOwner()
     {
         _nextStage();
     }
 
     function bidBuy(uint256 _price, uint256 _amount)
         external
+        onlyBuyer(msg.sender)
         timedTransitions()
         atStage(Stages.AcceptingBids)
-        onlyBuyer(msg.sender)
     {
         require(!bidderToBid[msg.sender].didBid, "You already bidded.");
 
@@ -96,22 +96,22 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
 
     function bidSell(uint256 _price)
         external
+        onlySeller(msg.sender)
         timedTransitions()
         atStage(Stages.AcceptingBids)
-        onlySeller(msg.sender)
     {
         require(!bidderToBid[msg.sender].didBid, "You already bidded.");
 
         bidderToBid[msg.sender].price = _price;
-        bidderToBid[msg.sender].amount = token.balanceOf(msg.sender);
+        bidderToBid[msg.sender].amount = _token.balanceOf(msg.sender);
         bidderToBid[msg.sender].didBid = true;
     }
 
     function beginAuction()
         external
+        onlyOwner
         timedTransitions()
         atStage(Stages.AcceptingAuction)
-        onlyOwner()
     {
         if (provable_getPrice("URL") > address(this).balance) {
             emit LogInfo(
@@ -132,5 +132,9 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
 
     function provableApi() external pure returns (string memory) {
         return PROVABLE_API;
+    }
+
+    function bids() external view returns (Bid[] memory) {
+        return _bids;
     }
 }
