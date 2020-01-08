@@ -7,7 +7,7 @@ require("@openzeppelin/test-helpers/configure")({
   provider: web3.currentProvider,
   environment: "truffle"
 });
-const {singletons} = require("@openzeppelin/test-helpers");
+const { singletons } = require("@openzeppelin/test-helpers");
 const fs = require("fs");
 
 module.exports = function(deployer, network, accounts) {
