@@ -17,30 +17,36 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         bool didBid;
     }
 
-    mapping(address => Bid) private bidderToBid;
+    string public constant PROVABLE_API = "aaa";
 
-    string constant PROVABLE_API = "aaa";
-    string private _name;
+    mapping(address => Bid) private _accountToBid;
+
     ELEC private _token;
     Bid[] private _bids;
 
     modifier onlyBuyer(address account) {
         require(
-            bidderToBid[account].bidType == BidTypes.Buy,
-            "You doesn't have buyer role."
+            _accountToBid[account].nodeNum == 0,
+            "You're NOT registered as a bidder."
+        );
+        require(
+            _accountToBid[account].bidType == BidTypes.Buy,
+            "You're NOT a buyer."
         );
         _;
     }
 
     modifier onlySeller(address account) {
         require(
-            bidderToBid[account].bidType == BidTypes.Sell,
-            "You doesn't have seller role."
+            _accountToBid[account].nodeNum == 0,
+            "You're NOT registered as a bidder."
+        );
+        require(
+            _accountToBid[account].bidType == BidTypes.Sell,
+            "You're NOT a seller."
         );
         _;
     }
-
-    event LogInfo(string message);
 
     constructor(string memory name, uint bidPeriod)
         public
@@ -48,7 +54,6 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         StateMachine(bidPeriod)
     {
         _token = new ELEC(name);
-        _name = name;
     }
 
     function registerBuyer(address buyer, uint256 nodeNum)
@@ -58,7 +63,7 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     {
         Bid memory bid = Bid(BidTypes.Buy, 0, 0, nodeNum, false);
         _bids.push(bid);
-        bidderToBid[buyer] = bid;
+        _accountToBid[buyer] = bid;
     }
 
     function registerSeller(address seller, uint256 nodeNum, uint256 surplus)
@@ -66,9 +71,9 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         onlyOwner
         atStage(Stages.RegisteringBidders)
     {
-        Bid memory bid = Bid(BidTypes.Sell, 0, 0, nodeNum, false);
+        Bid memory bid = Bid(BidTypes.Sell, 0, surplus, nodeNum, false);
         _bids.push(bid);
-        bidderToBid[seller] = bid;
+        _accountToBid[seller] = bid;
         _token.mint(seller, surplus);
     }
 
@@ -81,17 +86,18 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         _nextStage();
     }
 
-    function bidBuy(uint256 _price, uint256 _amount)
+    function bidBuy(uint256 price, uint256 amount)
         external
+        payable
         onlyBuyer(msg.sender)
         timedTransitions()
         atStage(Stages.AcceptingBids)
     {
-        require(!bidderToBid[msg.sender].didBid, "You already bidded.");
+        require(!_accountToBid[msg.sender].didBid, "You already bidded.");
 
-        bidderToBid[msg.sender].price = _price;
-        bidderToBid[msg.sender].amount = _amount;
-        bidderToBid[msg.sender].didBid = true;
+        _accountToBid[msg.sender].price = price;
+        _accountToBid[msg.sender].amount = amount;
+        _accountToBid[msg.sender].didBid = true;
     }
 
     function bidSell(uint256 _price)
@@ -100,11 +106,10 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
         timedTransitions()
         atStage(Stages.AcceptingBids)
     {
-        require(!bidderToBid[msg.sender].didBid, "You already bidded.");
+        require(!_accountToBid[msg.sender].didBid, "You already bidded.");
 
-        bidderToBid[msg.sender].price = _price;
-        bidderToBid[msg.sender].amount = _token.balanceOf(msg.sender);
-        bidderToBid[msg.sender].didBid = true;
+        _accountToBid[msg.sender].price = _price;
+        _accountToBid[msg.sender].didBid = true;
     }
 
     function beginAuction()
@@ -130,11 +135,83 @@ contract ElectricityMarket is Ownable, usingProvable, StateMachine {
     //     if (msg.sender != provable_cbAddress()) revert();
     // }
 
-    function provableApi() external pure returns (string memory) {
-        return PROVABLE_API;
+    function bidsLength()
+        external
+        view
+        onlyOwner
+        returns (uint256)
+    {
+        return _bids.length;
     }
 
-    function bids() external view returns (Bid[] memory) {
-        return _bids;
+    function bidByIndex(uint index)
+        external
+        view
+        onlyOwner
+        returns (BidTypes, uint256, uint256, uint256, bool)
+    {
+        require(
+            _bids[index].nodeNum != 0,
+            "This index is NOT registered as a bidder."
+        );
+
+        Bid memory bid = _bids[index];
+
+        return _bidInfo(bid);
     }
+
+    function bidByAccount(address account) 
+        external
+        view
+        onlyOwner
+        returns (BidTypes, uint256, uint256, uint256, bool)
+    {
+        require(
+            _accountToBid[account].nodeNum != 0,
+            "This account is NOT registered as a bidder."
+        );
+
+        Bid memory bid = _accountToBid[account];
+
+        return _bidInfo(bid);
+    }
+
+    function myBid() 
+        external
+        view
+        returns (BidTypes, uint256, uint256, uint256, bool)
+    {
+        require(
+            _accountToBid[msg.sender].nodeNum != 0,
+            "You're NOT registered as a bidder."
+        );
+
+        Bid memory bid = _accountToBid[msg.sender];
+
+        return _bidInfo(bid);
+    }
+
+    function _bidInfo(Bid memory bid)
+        private
+        pure
+        returns(BidTypes, uint256, uint256, uint256, bool)
+    {
+        return (
+            bid.bidType,
+            bid.price,
+            bid.amount,
+            bid.nodeNum,
+            bid.didBid
+        );
+    }
+
+    function withdraw(uint amount) public {
+        require(balances[msg.sender] >= amount);
+
+        balances[msg.sender] -= amount;
+
+        msg.sender.transfer(amount);
+    }
+
+    event LogInfo(string description);
 }
