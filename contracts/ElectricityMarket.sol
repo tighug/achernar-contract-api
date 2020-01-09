@@ -1,21 +1,12 @@
 pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
-import "./provableAPI.sol";
 import "./ELEC.sol";
 import "./MarketStateMachine.sol";
+import "./ElectricityMarketHelper.sol";
 
-
-contract ElectricityMarket is Ownable, usingProvable, StateMachine {
-    enum BidTypes {Buy, Sell}
-
-    struct Bid {
-        BidTypes bidType;
-        uint256 price;
-        uint256 amount;
-        uint256 nodeNum;
-        bool didBid;
-    }
+contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
+    
 
     string public constant PROVABLE_API = "aaa";
 
