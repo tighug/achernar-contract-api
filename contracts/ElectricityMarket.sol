@@ -11,6 +11,7 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
     string public constant PROVABLE_API = "aaa";
 
     mapping(address => Bid) private _accountToBid;
+    mapping(address => uint) _balances;
 
     ELEC private _token;
     Bid[] private _bids;
@@ -122,9 +123,11 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         _nextStage();
     }
 
-    // function __callback(bytes32 myid, string memory result) public {
-    //     if (msg.sender != provable_cbAddress()) revert();
-    // }
+    function __callback(bytes32 myid, string memory result) public {
+        if (msg.sender != provable_cbAddress()) revert();
+
+
+    }
 
     function bidsLength()
         external
@@ -196,10 +199,11 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         );
     }
 
-    function withdraw(uint amount) public {
-        require(balances[msg.sender] >= amount);
+    function withdraw() public {
+        require(_balances[msg.sender] > 0);
 
-        balances[msg.sender] -= amount;
+        uint amount = _balances[msg.sender];
+        _balances[msg.sender] = 0;
 
         msg.sender.transfer(amount);
     }
