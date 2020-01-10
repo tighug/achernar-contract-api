@@ -6,16 +6,16 @@ import PowerMarket from "./build/contracts/ElectricityMarket.json";
 dotenv.config();
 
 const app = express();
-const port = process.env.CONTRACT_API_PORT || process.env.PORT || 7000;
-const address = fs.readFileSync("market", "utf-8");
+const PORT = process.env.CONTRACT_API_PORT || 7000;
+const ADDRESS = fs.readFileSync("market", "utf-8");
 
 app.get("/contract", (req: Request, res: Response) => {
   res.json({
     abi: PowerMarket.abi,
-    address: address
+    address: ADDRESS
   });
 });
 
-app.listen(port, () => {
-  console.log(`listening on port ${port}...`);
+app.listen(PORT, () => {
+  console.log(`listening on port ${PORT}...`);
 });
