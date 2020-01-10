@@ -5,9 +5,8 @@ import "./ELEC.sol";
 import "./MarketStateMachine.sol";
 import "./ElectricityMarketHelper.sol";
 
-contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
-    
 
+contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
     string public constant PROVABLE_API = "aaa";
 
     mapping(address => Bid) private _accountToBid;
@@ -123,7 +122,7 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         _nextStage();
     }
 
-    function __callback(bytes32 myid, string memory result) public {
+    function __callback(bytes32 myid, string memory result) external {
         if (msg.sender != provable_cbAddress()) revert();
 
 
@@ -154,7 +153,7 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         return _bidInfo(bid);
     }
 
-    function bidByAccount(address account) 
+    function bidByAccount(address account)
         external
         view
         onlyOwner
@@ -170,7 +169,7 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         return _bidInfo(bid);
     }
 
-    function myBid() 
+    function myBid()
         external
         view
         returns (BidTypes, uint256, uint256, uint256, bool)
@@ -185,6 +184,18 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         return _bidInfo(bid);
     }
 
+    function withdraw() public {
+        require(
+            _balances[msg.sender] > 0,
+            "You have no balace."
+        );
+
+        uint amount = _balances[msg.sender];
+        _balances[msg.sender] = 0;
+
+        msg.sender.transfer(amount);
+    }
+
     function _bidInfo(Bid memory bid)
         private
         pure
@@ -197,15 +208,6 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
             bid.nodeNum,
             bid.didBid
         );
-    }
-
-    function withdraw() public {
-        require(_balances[msg.sender] > 0);
-
-        uint amount = _balances[msg.sender];
-        _balances[msg.sender] = 0;
-
-        msg.sender.transfer(amount);
     }
 
     event LogInfo(string description);
