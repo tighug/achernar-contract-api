@@ -5,14 +5,8 @@ module.exports = {
   migrations_directory: "./migrations",
   networks: {
     ganache: {
-      host:
-        process.env.CONTRACT_API_GANACHE_HOST ||
-        process.env.GANACHE_HOST ||
-        "localhost",
-      port:
-        process.env.CONTRACT_API_GANACHE_PORT ||
-        process.env.GANACHE_PORT ||
-        8545,
+      host: process.env.GANACHE_HOST || "localhost",
+      port: process.env.GANACHE_PORT || 8545,
       network_id: "*"
     }
   },
