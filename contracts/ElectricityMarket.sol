@@ -1,13 +1,13 @@
 pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
-import "./ELEC.sol";
+import "./token/ELEC.sol";
 import "./MarketStateMachine.sol";
 import "./ElectricityMarketHelper.sol";
 
 
 contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
-    string public constant PROVABLE_API = "aaa";
+    string public constant PROVABLE_API = "http://localhost:3001";
 
     mapping(address => Bid) private _accountToBid;
     mapping(address => uint) _balances;
@@ -122,11 +122,11 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         _nextStage();
     }
 
-    function __callback(bytes32 myid, string memory result) external {
-        if (msg.sender != provable_cbAddress()) revert();
+    // function __callback(bytes32 myid, string memory result) external {
+    //     if (msg.sender != provable_cbAddress()) revert();
 
 
-    }
+    // }
 
     function bidsLength()
         external
