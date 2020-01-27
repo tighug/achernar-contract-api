@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 
 
-contract StateMachine {
+contract MarketStateMachine {
     enum Stages {
         RegisteringBidders, // 0
         AcceptingBids,      // 1
@@ -10,38 +10,26 @@ contract StateMachine {
         Finished            // 4
     }
 
-    uint256 private _creationTime = now;
-    uint256 private _bidPeriod;
-    Stages private _stage = Stages.AcceptingBids;
+    uint256 public creationTime = now;
+    uint256 public bidPeriod;
+    Stages public stage = Stages.AcceptingBids;
 
-    modifier atStage(Stages stage) {
-        require(_stage == stage, "Function cannot be called at this time.");
+    modifier atStage(Stages _stage) {
+        require(stage == stage, "Function cannot be called at this time.");
         _;
     }
 
     modifier timedTransitions() {
-        if (_stage == Stages.AcceptingBids && now >= _creationTime + _bidPeriod)
+        if (stage == Stages.AcceptingBids && now >= creationTime + bidPeriod)
             _nextStage();
         _;
     }
 
-    constructor(uint256 bidPeriod) internal {
-        _bidPeriod = bidPeriod;
-    }
-
-    function creationTime() external view returns (uint256) {
-        return _creationTime;
-    }
-
-    function bidPeriod() external view returns (uint256) {
-        return _bidPeriod;
-    }
-
-    function stage() external view returns (Stages) {
-        return _stage;
+    constructor(uint256 _bidPeriod) internal {
+        bidPeriod = _bidPeriod;
     }
 
     function _nextStage() internal {
-        _stage = Stages(uint256(_stage) + 1);
+        stage = Stages(uint256(stage) + 1);
     }
 }

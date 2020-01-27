@@ -3,16 +3,16 @@ pragma solidity 0.5.14;
 import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./token/ELEC.sol";
 import "./MarketStateMachine.sol";
-import "./ElectricityMarketHelper.sol";
+import "./MarketHelper.sol";
 
 
-contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
+contract Market is MarketHelper, Ownable, MarketStateMachine {
     string public constant PROVABLE_API = "http://localhost:3001";
 
     mapping(address => Bid) private _accountToBid;
-    mapping(address => uint) _balances;
+    mapping(address => uint256) _balances;
 
-    ELEC private _token;
+    ELEC token;
     Bid[] private _bids;
 
     modifier onlyBuyer(address account) {
@@ -39,12 +39,13 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         _;
     }
 
-    constructor(string memory name, uint bidPeriod)
-        public
-        payable
-        StateMachine(bidPeriod)
-    {
-        _token = new ELEC(name);
+    constructor(
+        string memory name,
+        uint256 bidPeriod,
+        address _userContract,
+        string memory auctionApi
+    ) public payable MarketStateMachine(bidPeriod) {
+        token = new ELEC(name);
     }
 
     function registerBuyer(address buyer, uint256 nodeNum)
@@ -65,7 +66,7 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         Bid memory bid = Bid(BidTypes.Sell, 0, surplus, nodeNum, false);
         _bids.push(bid);
         _accountToBid[seller] = bid;
-        _token.mint(seller, surplus);
+        token.mint(seller, surplus);
     }
 
     function openMarket()
@@ -125,19 +126,13 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
     // function __callback(bytes32 myid, string memory result) external {
     //     if (msg.sender != provable_cbAddress()) revert();
 
-
     // }
 
-    function bidsLength()
-        external
-        view
-        onlyOwner
-        returns (uint256)
-    {
+    function bidsLength() external view onlyOwner returns (uint256) {
         return _bids.length;
     }
 
-    function bidByIndex(uint index)
+    function bidByIndex(uint256 index)
         external
         view
         onlyOwner
@@ -184,30 +179,12 @@ contract ElectricityMarket is ElectricityMarketHelper, Ownable, StateMachine {
         return _bidInfo(bid);
     }
 
-    function withdraw() public {
-        require(
-            _balances[msg.sender] > 0,
-            "You have no balace."
-        );
-
-        uint amount = _balances[msg.sender];
-        _balances[msg.sender] = 0;
-
-        msg.sender.transfer(amount);
-    }
-
     function _bidInfo(Bid memory bid)
         private
         pure
-        returns(BidTypes, uint256, uint256, uint256, bool)
+        returns (BidTypes, uint256, uint256, uint256, bool)
     {
-        return (
-            bid.bidType,
-            bid.price,
-            bid.amount,
-            bid.nodeNum,
-            bid.didBid
-        );
+        return (bid.bidType, bid.price, bid.amount, bid.nodeNum, bid.didBid);
     }
 
     event LogInfo(string description);
