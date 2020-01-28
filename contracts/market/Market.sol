@@ -1,7 +1,7 @@
 pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
-import "./token/ELEC.sol";
+import "../token/ELEC.sol";
 import "./MarketStateMachine.sol";
 import "./MarketHelper.sol";
 

@@ -1,6 +1,6 @@
 pragma solidity 0.5.14;
 
-import "./vendor/provableAPI.sol";
+import "../vendor/provableAPI.sol";
 import "./MarketModel.sol";
 
 
