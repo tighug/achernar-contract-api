@@ -1,95 +1,104 @@
 pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "../user/IUserMaster.sol";
+import "../token/IELECMaster.sol";
 import "../token/ELEC.sol";
 import "./MarketStateMachine.sol";
 import "./MarketHelper.sol";
 
 
 contract Market is MarketHelper, Ownable, MarketStateMachine {
-    string public constant PROVABLE_API = "http://localhost:3001";
+    string public auctionApi;
 
-    mapping(address => Bid) private _accountToBid;
-    mapping(address => uint256) _balances;
-
+    IUserMaster userMaster;
+    IELECMaster elecMaster;
     ELEC token;
-    Bid[] private _bids;
+    Bid[] private bids;
 
-    modifier onlyBuyer(address account) {
-        require(
-            _accountToBid[account].nodeNum == 0,
-            "You're NOT registered as a bidder."
-        );
-        require(
-            _accountToBid[account].bidType == BidTypes.Buy,
-            "You're NOT a buyer."
-        );
+    string name;
+    uint256 feederId;
+    uint256 baseAgreedPrice;
+
+    mapping(address => BidTypes) userToBidTypes;
+    mapping(address => Bid) userToBid;
+    mapping(address => bool) userToDidBid;
+    mapping(address => uint256) userToPending;
+    mapping(address => uint256) userToBalance;
+
+    modifier onlyBuyer(address user) {
+        (, uint256 userFeederId, ) = userMaster.userInfo(user);
+
+        require(userFeederId == feederId, "You're NOT registered as a user.");
+        require(userToBidTypes[user] == BidTypes.Buy, "You're NOT a buyer.");
         _;
     }
 
-    modifier onlySeller(address account) {
-        require(
-            _accountToBid[account].nodeNum == 0,
-            "You're NOT registered as a bidder."
-        );
-        require(
-            _accountToBid[account].bidType == BidTypes.Sell,
-            "You're NOT a seller."
-        );
+    modifier onlySeller(address user) {
+        (, uint256 userFeederId, ) = userMaster.userInfo(user);
+
+        require(userFeederId == feederId, "You're NOT registered as a user.");
+        require(userToBidTypes[user] == BidTypes.Sell, "You're NOT a seller.");
         _;
     }
 
     constructor(
-        string memory name,
-        uint256 bidPeriod,
-        address _userContract,
-        string memory auctionApi
-    ) public payable MarketStateMachine(bidPeriod) {
-        token = new ELEC(name);
+        address _userMaster,
+        address _elecMaster,
+        string memory _name,
+        uint256 _feederId,
+        uint256 _bidPeriod,
+        string memory _auctionApi
+    ) public payable MarketStateMachine(_bidPeriod) {
+        userMaster = IUserMaster(_userMaster);
+        elecMaster = IELECMaster(_elecMaster);
+
+        elecMaster.createELEC(_name);
+        feederId = _feederId;
+        auctionApi = _auctionApi;
     }
 
-    function registerBuyer(address buyer, uint256 nodeNum)
+    function registerBuyer(address user)
         external
         onlyOwner
         atStage(Stages.RegisteringBidders)
     {
-        Bid memory bid = Bid(BidTypes.Buy, 0, 0, nodeNum, false);
-        _bids.push(bid);
-        _accountToBid[buyer] = bid;
+        userToBidTypes[user] = BidTypes.Buy;
     }
 
-    function registerSeller(address seller, uint256 nodeNum, uint256 surplus)
+    function registerSeller(address user, uint256 surplus)
         external
         onlyOwner
         atStage(Stages.RegisteringBidders)
     {
-        Bid memory bid = Bid(BidTypes.Sell, 0, surplus, nodeNum, false);
-        _bids.push(bid);
-        _accountToBid[seller] = bid;
-        token.mint(seller, surplus);
+        userToBidTypes[user] = BidTypes.Sell;
+        token.mint(user, surplus);
     }
 
     function openMarket()
         external
         onlyOwner
-        timedTransitions()
         atStage(Stages.RegisteringBidders)
     {
         _nextStage();
     }
 
-    function bidBuy(uint256 price, uint256 amount)
+    function bidBuy(uint256 _price, uint256 _amount)
         external
         payable
         onlyBuyer(msg.sender)
         timedTransitions()
         atStage(Stages.AcceptingBids)
     {
-        require(!_accountToBid[msg.sender].didBid, "You already bidded.");
+        require(!userToDidBid[msg.sender], "You already bidded.");
+        require(msg.value >= _price * _amount, "You need to pay in advance.");
 
-        _accountToBid[msg.sender].price = price;
-        _accountToBid[msg.sender].amount = amount;
-        _accountToBid[msg.sender].didBid = true;
+        Bid memory bid = Bid(BidTypes.Buy, _price, _amount, 0);
+        bids.push(bid);
+        userToBid[msg.sender] = bid;
+        userToDidBid[msg.sender] = true;
+
+        userToPending[msg.sender] = msg.value;
     }
 
     function bidSell(uint256 _price)
@@ -98,94 +107,49 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
         timedTransitions()
         atStage(Stages.AcceptingBids)
     {
-        require(!_accountToBid[msg.sender].didBid, "You already bidded.");
+        require(!userToDidBid[msg.sender], "You already bidded.");
 
-        _accountToBid[msg.sender].price = _price;
-        _accountToBid[msg.sender].didBid = true;
+        Bid memory bid = Bid(
+            BidTypes.Buy,
+            _price,
+            token.balanceOf(msg.sender),
+            0
+        );
+        bids.push(bid);
+        userToBid[msg.sender] = bid;
+        userToDidBid[msg.sender] = true;
     }
 
-    function beginAuction()
-        external
-        onlyOwner
-        timedTransitions()
-        atStage(Stages.AcceptingAuction)
-    {
-        if (provable_getPrice("URL") > address(this).balance) {
-            emit LogInfo(
-                "Provable query was NOT sent, please add some ETH to cover for the query fee"
-            );
-        } else {
-            emit LogInfo(
-                "Provable query was sent, standing by for the answer.."
-            );
-            provable_query("URL", PROVABLE_API);
-        }
-        _nextStage();
-    }
+    // function beginAuction()
+    //     external
+    //     onlyOwner
+    //     timedTransitions()
+    //     atStage(Stages.AcceptingAuction)
+    // {
+    //     if (provable_getPrice("URL") > address(this).balance) {
+    //         emit LogInfo(
+    //             "Provable query was NOT sent, please add some ETH to cover for the query fee"
+    //         );
+    //     } else {
+    //         emit LogInfo(
+    //             "Provable query was sent, standing by for the answer.."
+    //         );
+    //         provable_query("URL", PROVABLE_API);
+    //     }
+    //     _nextStage();
+    // }
 
     // function __callback(bytes32 myid, string memory result) external {
     //     if (msg.sender != provable_cbAddress()) revert();
 
     // }
 
-    function bidsLength() external view onlyOwner returns (uint256) {
-        return _bids.length;
+    function withdraw() external {
+        require(userToBalance[msg.sender] > 0, "You have no balace.");
+
+        uint256 amount = userToBalance[msg.sender];
+        userToBalance[msg.sender] = 0;
+
+        msg.sender.transfer(amount);
     }
-
-    function bidByIndex(uint256 index)
-        external
-        view
-        onlyOwner
-        returns (BidTypes, uint256, uint256, uint256, bool)
-    {
-        require(
-            _bids[index].nodeNum != 0,
-            "This index is NOT registered as a bidder."
-        );
-
-        Bid memory bid = _bids[index];
-
-        return _bidInfo(bid);
-    }
-
-    function bidByAccount(address account)
-        external
-        view
-        onlyOwner
-        returns (BidTypes, uint256, uint256, uint256, bool)
-    {
-        require(
-            _accountToBid[account].nodeNum != 0,
-            "This account is NOT registered as a bidder."
-        );
-
-        Bid memory bid = _accountToBid[account];
-
-        return _bidInfo(bid);
-    }
-
-    function myBid()
-        external
-        view
-        returns (BidTypes, uint256, uint256, uint256, bool)
-    {
-        require(
-            _accountToBid[msg.sender].nodeNum != 0,
-            "You're NOT registered as a bidder."
-        );
-
-        Bid memory bid = _accountToBid[msg.sender];
-
-        return _bidInfo(bid);
-    }
-
-    function _bidInfo(Bid memory bid)
-        private
-        pure
-        returns (BidTypes, uint256, uint256, uint256, bool)
-    {
-        return (bid.bidType, bid.price, bid.amount, bid.nodeNum, bid.didBid);
-    }
-
-    event LogInfo(string description);
 }

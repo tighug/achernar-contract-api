@@ -2,9 +2,10 @@ pragma solidity 0.5.14;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "./IPenaltyToken.sol";
 
 
-contract PenaltyToken is Ownable {
+contract PenaltyToken is Ownable, IPenaltyToken {
     using SafeMath for uint256;
 
     mapping(address => uint256) private _balances;

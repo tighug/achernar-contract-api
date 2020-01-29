@@ -4,17 +4,21 @@ import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./Market.sol";
 
 
-contract MarketCreator is Ownable {
+contract MarketMaster is Ownable {
     Market[] private _markets;
 
     function createMarket(
         address owner,
-        string calldata tokenName,
+        string calldata name,
         uint256 bidPeriod
     ) external onlyOwner returns (Market market)
     {
-        market = new Market(tokenName, bidPeriod);
+        market = new Market(name, bidPeriod);
         market.transferOwnership(owner);
         _markets.push(market);
+    }
+
+    function markets() public view returns (Market[] memory) {
+        return _markets;
     }
 }
