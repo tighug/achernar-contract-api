@@ -27,7 +27,7 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
     mapping(address => uint256) userToBalance;
 
     modifier onlyBuyer(address user) {
-        (, uint256 userFeederId, ) = userMaster.userInfo(user);
+        (uint256 userFeederId, ) = userMaster.userInfo(user);
 
         require(userFeederId == feederId, "You're NOT registered as a user.");
         require(userToBidTypes[user] == BidTypes.Buy, "You're NOT a buyer.");
@@ -35,7 +35,7 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
     }
 
     modifier onlySeller(address user) {
-        (, uint256 userFeederId, ) = userMaster.userInfo(user);
+        (uint256 userFeederId, ) = userMaster.userInfo(user);
 
         require(userFeederId == feederId, "You're NOT registered as a user.");
         require(userToBidTypes[user] == BidTypes.Sell, "You're NOT a seller.");

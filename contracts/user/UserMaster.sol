@@ -10,20 +10,24 @@ contract UserMaster is Ownable, IUserMaster {
         uint256 nodeId;
     }
 
-    mapping(address => UserInfo) private _userToInfo;
+    mapping(address => UserInfo) private userToInfo;
 
-    address[] private _users;
+    address[] users;
 
     function createUser(address addr, uint256 feederId, uint256 nodeId)
         external
         onlyOwner
     {
         UserInfo memory userInfo = UserInfo(feederId, nodeId);
-        _users.push(addr);
-        _userToInfo[addr] = userInfo;
+        users.push(addr);
+        userToInfo[addr] = userInfo;
     }
 
-    function users() external view returns (address[] memory) {
-        return _users;
+    function userInfo(address user)
+        external
+        view
+        returns (uint256, uint256)
+    {
+        return (userToInfo[user].feederId, userToInfo[user].nodeId);
     }
 }
