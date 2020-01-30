@@ -1,42 +1,46 @@
-// eslint-disable-next-line no-undef
-const ElectricityMarket = artifacts.require("./ElectricityMarket.sol");
-// eslint-disable-next-line no-undef
-const ENGToken = artifacts.require("./ENGToken.sol");
-require("@openzeppelin/test-helpers/configure")({
-  // eslint-disable-next-line no-undef
-  provider: web3.currentProvider,
-  environment: "truffle"
-});
-const { singletons } = require("@openzeppelin/test-helpers");
+/* eslint-disable no-undef */
+const UserMaster = artifacts.require("./user/UserMaster.sol");
+const ELECMaster = artifacts.require("./token/ELECMaster.sol");
+const MarketMaster = artifacts.require("./market/MarketMaster.sol");
+
 const fs = require("fs");
+const address = {
+  UserMaster: "",
+  ELECMaster: "",
+  MarketMaster: ""
+};
 
 module.exports = function(deployer, network, accounts) {
   deployer.then(async () => {
-    await singletons.ERC1820Registry(accounts[0]);
-
     await deployer
-      .deploy(ENGToken, [accounts[0]], {
+      .deploy(UserMaster, {
         from: accounts[0],
         gas: 6721975
       })
       .then(() => {
-        try {
-          fs.writeFileSync("token", ENGToken.address);
-          console.log("write end");
-        } catch (e) {
-          console.log(e);
-        }
+        address.UserMaster = UserMaster.address;
       });
+
     await deployer
-      .deploy(ElectricityMarket, ENGToken.address, 100, {
+      .deploy(ELECMaster, {
         from: accounts[0],
-        gas: 6721975,
-        value: 50000000000000000
+        gas: 6721975
       })
       .then(() => {
+        address.ELECMaster = ELECMaster.address;
+      });
+
+    await deployer
+      .deploy(MarketMaster, {
+        from: accounts[0],
+        gas: 6721975
+      })
+      .then(() => {
+        address.MarketMaster = MarketMaster.address;
+
         try {
-          fs.writeFileSync("market", ElectricityMarket.address);
-          console.log("write end");
+          fs.writeFile("address.json", JSON.stringify(address, null, "    "));
+          console.log("end");
         } catch (e) {
           console.log(e);
         }
