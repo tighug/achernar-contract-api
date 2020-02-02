@@ -4,7 +4,7 @@ const ELECMaster = artifacts.require("./token/ELECMaster.sol");
 const MarketMaster = artifacts.require("./market/MarketMaster.sol");
 
 const fs = require("fs");
-const address = {
+const addressData = {
   UserMaster: "",
   ELECMaster: "",
   MarketMaster: ""
@@ -18,7 +18,7 @@ module.exports = function(deployer, network, accounts) {
         gas: 6721975
       })
       .then(() => {
-        address.UserMaster = UserMaster.address;
+        addressData.UserMaster = UserMaster.address;
       });
 
     await deployer
@@ -27,7 +27,7 @@ module.exports = function(deployer, network, accounts) {
         gas: 6721975
       })
       .then(() => {
-        address.ELECMaster = ELECMaster.address;
+        addressData.ELECMaster = ELECMaster.address;
       });
 
     await deployer
@@ -36,14 +36,17 @@ module.exports = function(deployer, network, accounts) {
         gas: 6721975
       })
       .then(() => {
-        address.MarketMaster = MarketMaster.address;
+        addressData.MarketMaster = MarketMaster.address;
 
-        try {
-          fs.writeFile("address.json", JSON.stringify(address, null, "    "));
-          console.log("end");
-        } catch (e) {
-          console.log(e);
-        }
+        fs.writeFile(
+          "address.json",
+          JSON.stringify(addressData, null, 4),
+          err => {
+            if (err) console.log(err);
+
+            console.log("end");
+          }
+        );
       });
   });
 };
