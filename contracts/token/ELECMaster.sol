@@ -5,12 +5,12 @@ import "./ELEC.sol";
 
 
 contract ELECMaster is IELECMaster {
-    ELEC[] tokens;
+    ELEC[] public tokens;
 
-    function createELEC(string calldata name) external returns (ELEC) {
+    function createELEC(string memory name) public returns (ELEC) {
         ELEC token = new ELEC(name);
 
-        tokens.push(token);
+        // tokens.push(token);
 
         return token;
     }

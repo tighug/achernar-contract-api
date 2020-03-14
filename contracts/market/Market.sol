@@ -8,7 +8,7 @@ import "./MarketStateMachine.sol";
 import "./MarketHelper.sol";
 
 
-contract Market is MarketHelper, Ownable, MarketStateMachine {
+contract Market is MarketHelper, Ownable {
     string public auctionApi;
 
     IUserMaster userMaster;
@@ -49,27 +49,31 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
         uint256 _feederId,
         uint256 _bidPeriod,
         string memory _auctionApi
-    ) public payable MarketStateMachine(_bidPeriod) {
-        userMaster = IUserMaster(_userMaster);
-        elecMaster = IELECMaster(_elecMaster);
+    )
+        public
+        payable
+        // MarketStateMachine(_bidPeriod)
+    {
+        // userMaster = IUserMaster(_userMaster);
+        // elecMaster = IELECMaster(_elecMaster);
 
-        elecMaster.createELEC(_name);
+        // elecMaster.createELEC(_name);
         feederId = _feederId;
         auctionApi = _auctionApi;
     }
 
     function registerBuyer(address user)
         external
+        // atStage(Stages.RegisteringBidders)
         onlyOwner
-        atStage(Stages.RegisteringBidders)
     {
         userToBidTypes[user] = BidTypes.Buy;
     }
 
     function registerSeller(address user, uint256 surplus)
         external
+        // atStage(Stages.RegisteringBidders)
         onlyOwner
-        atStage(Stages.RegisteringBidders)
     {
         userToBidTypes[user] = BidTypes.Sell;
         token.mint(user, surplus);
@@ -77,18 +81,18 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
 
     function openMarket()
         external
+        // atStage(Stages.RegisteringBidders)
         onlyOwner
-        atStage(Stages.RegisteringBidders)
     {
-        _nextStage();
+        // _nextStage();
     }
 
     function bidBuy(uint256 _price, uint256 _amount)
         external
         payable
+        // timedTransitions()
+        // atStage(Stages.AcceptingBids)
         onlyBuyer(msg.sender)
-        timedTransitions()
-        atStage(Stages.AcceptingBids)
     {
         require(!userToDidBid[msg.sender], "You already bidded.");
         require(msg.value >= _price * _amount, "You need to pay in advance.");
@@ -103,9 +107,9 @@ contract Market is MarketHelper, Ownable, MarketStateMachine {
 
     function bidSell(uint256 _price)
         external
+        // timedTransitions()
+        // atStage(Stages.AcceptingBids)
         onlySeller(msg.sender)
-        timedTransitions()
-        atStage(Stages.AcceptingBids)
     {
         require(!userToDidBid[msg.sender], "You already bidded.");
 

@@ -5,7 +5,7 @@ import "./Market.sol";
 
 
 contract MarketMaster is Ownable {
-    Market[] markets;
+    Market[] public markets;
 
     function createMarket(
         address _owner,
@@ -16,9 +16,9 @@ contract MarketMaster is Ownable {
         uint256 _bidPeriod,
         string calldata _auctionApi
     )
-        external onlyOwner returns (Market market)
+        external onlyOwner returns (Market)
     {
-        market = new Market(
+        Market market = new Market(
             _userMaster,
             _elecMaster,
             _name,
@@ -26,7 +26,9 @@ contract MarketMaster is Ownable {
             _bidPeriod,
             _auctionApi
         );
-        market.transferOwnership(_owner);
-        markets.push(market);
+        // market.transferOwnership(_owner);
+        // markets.push(market);
+
+        return market;
     }
 }
