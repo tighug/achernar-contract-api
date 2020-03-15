@@ -1,7 +1,8 @@
 {
-  "name": "contract_api",
+  "name": "achernar-contract-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "余剰電力取引システムAchernarのスマートコントラクト管理API",
+  "license": "",
   "main": "",
   "scripts": {
     "compile": "truffle compile",
@@ -11,7 +12,6 @@
     "watch": "solium --watch -d contracts/"
   },
   "author": "",
-  "license": "ISC",
   "dependencies": {
     "@openzeppelin/contracts": "^2.4.0",
     "@openzeppelin/test-helpers": "^0.5.4",

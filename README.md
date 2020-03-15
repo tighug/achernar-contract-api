@@ -1,6 +1,6 @@
-# smart-contract
+# Achernar Contract API
 
-スマートコントラクトの開発
+余剰電力取引システムAchernarのスマートコントラクト管理API
 
 ## セットアップ
 
