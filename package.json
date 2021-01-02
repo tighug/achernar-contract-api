@@ -17,7 +17,6 @@
     "@openzeppelin/test-helpers": "^0.5.4",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
-    "solium": "^1.2.5",
     "truffle": "^5.1.14",
     "ts-node": "^8.5.4",
     "typescript": "^3.7.2"
