@@ -1,9 +1,10 @@
 {
   "name": "achernar-contract-api",
-  "version": "1.0.0",
-  "description": "余剰電力取引システムAchernarのスマートコントラクト管理API",
-  "license": "",
-  "main": "",
+  "version": "0.1.0",
+  "main": "index.js",
+  "repository": "https://github.com/tighug/achernar-flow-api",
+  "author": "tighug <kapuriko123@gmail.com>",
+  "license": "MIT",
   "scripts": {
     "compile": "truffle compile",
     "migrate:ganache": "truffle migrate --network ganache",
@@ -11,7 +12,6 @@
     "lint": "solium -d contracts/",
     "watch": "solium --watch -d contracts/"
   },
-  "author": "",
   "dependencies": {
     "@openzeppelin/contracts": "^2.4.0",
     "@openzeppelin/test-helpers": "^0.5.4",

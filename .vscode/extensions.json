@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    "eg2.vscode-npm-script",
+    "christian-kohler.npm-intellisense",
+    "dbaeumer.vscode-eslint",
+    "mikestead.dotenv",
+    "ms-azuretools.vscode-docker",
+    "juanblanco.solidity"
+  ]
+}
