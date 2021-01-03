@@ -7,12 +7,12 @@ module.exports = {
     ganache: {
       host: process.env.GANACHE_HOST || "localhost",
       port: process.env.GANACHE_PORT || 8545,
-      network_id: "*"
-    }
+      network_id: "*",
+    },
   },
   compilers: {
     solc: {
-      version: "v0.5.14"
-    }
-  }
+      version: "0.5.7",
+    },
+  },
 };
